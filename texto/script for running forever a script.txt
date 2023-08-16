@@ -1,0 +1,2 @@
+chmod +x script.py
+nohup python3 script.py &

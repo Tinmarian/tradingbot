@@ -1,0 +1,5 @@
+
+Comandos para ejecutar un script python de manera constante:
+chmod -x streaming_usdt_pairs.py
+chmod +x streaming_usdt_pairs.py
+nohup python3 streaming_usdt_pairs.py &
