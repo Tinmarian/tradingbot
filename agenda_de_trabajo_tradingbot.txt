@@ -1,0 +1,215 @@
+Tareas del día 04/04/24 al 05/04/24:
+
+	* Automatizar las visualizaciones con imágenes guardadas en carpetas para analizar a más rangos y con más variedad.
+			0% DE AVANCE.
+	
+	* Crear la estrategia de los trades:
+			* 90% DE AVANCE: Tenemos puntos con profits muy buenos.
+			* 10% FALTANTE: Falta profundizar en las ventanas temporales para la cuál, los puntos sean los mejores A SIMPLE VISTA.
+			* Mejoras: 
+						* Profundizar en la ventanas temporales y en los filtros utilizados para obtener los mejores puntos por
+						  medio de los datos.
+						* Agregar gestión de riesgo a la estrategia, puede ser algo sencillo cómo un SL/TP constante y conservadores.
+						  Posterior a ello se pueden generar SL/TP variables.
+						* Incorporar análisis de velas de mayor temporalidad con velas de menor para obtener una mejor visión de las
+						  posibilidades del mercado y poder tomar las tendencias de días, pero también las de horas y de minutos.
+	
+	* Implementar el streaming de datos desde el websocket al modelo de trades.
+			* 40% DE AVANCE: 
+						* Obtuvimos los datos desde el streaming de 1 segundo y guardamos localmente.
+						* Obtuvimos la gráfica asociada de datos de 1 segundo y los puntos de compra y venta (la estrategia).
+						
+			* 60% FALTANTE: 
+						* Actualizar la estrategia a la más reciente.
+						* Implementar el trading en la testnet.
+						   
+	* Crear la ingenieria de datos del proyecto en el local, para correr en la máquina A15.
+			* 0% DE AVANCE.
+
+
+
+Tareas del día 06/04/24:
+
+	* Implementar la estrategia más actual a los datos de 1 segundo y 1 minuto en la testnet de binance.
+	* Crear la tabla de profits para un periodo de 1 mes, con ventanas temporales de 1 día (30 ventanas), 
+	  3 días (10 ventanas), 1 semana(4 ventanas), 2 semanas (2 ventanas) y el mes entero.
+		* MOTIVOS: Esto podría ayudarnos a entender si las ventanas temporales influyen en la predicción de las compras y 
+				 las ventas de nuestra estrategia. El objetivo es encontrar la mejor ventana temporal para trabajar, 
+				 en caso de que dichas ventanas tengan efecto en las predicciones, en caso contrario se podría utilizar
+				 las ventanas más cómodas para la ejecución.
+	* 
+	* 
+
+
+
+
+Tareas ESPECIALES:
+
+	* Ejecutar la nueva estrategia mediante el bot de trading en la testnet.
+			FECHA DE PRIMERA EJECUCIÓN:
+	
+	* Ejecutar la nueva estrategia mediante el bot de trading en la cuenta spot.
+			FECHA DE PRIMERA EJECUCIÓN:
+
+	* Ejecutar la nueva estrategia mediante el bot de trading en la cuenta de margen y/o futuros.
+			FECHA DE PRIMERA EJECUCIÓN:
+			
+			
+			
+			
+			
+			
+			
+			
+SCRIPT de la estrategia desarrollada y definición de punto de compra y venta:
+
+################################################################################################################################################################################
+# Importamos las librerías necesarias y generamos conexión con Binance para descargar la lista de pares que binance maneja.
+################################################################################################################################################################################
+import pandas as pd
+import os
+import numpy as np
+from datetime import datetime
+import sympy as sp
+import scipy as sc
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.ticker as ticker
+from binance import Client
+
+client = Client()
+
+
+##################################################
+# Lista de parámetros.
+##################################################
+# Parámetros de interpolación.
+###################################
+smooth_interval = 25
+smooth_exp = 3
+###################################
+# Parámetros de estrategia.
+###################################
+rango = 50
+std_mult = 25
+z_aprox = 0.15
+
+
+##################################################################################################################################
+# Descarga y limpieza de datos de X días atrás a hoy.
+##################################################################################################################################
+# recent_data = pd.DataFrame(client.get_historical_klines('BTCUSDT','1m','4 day ago UTC'))
+# recent_data = recent_data.iloc[:,:6]
+# recent_data.columns = ['Tiempo','Open','High','Low','Close','Volume']
+# recent_data['Tiempo'] = pd.to_datetime(recent_data.Tiempo,unit='ms')
+# recent_data = recent_data.set_index('Tiempo')
+# recent_data = recent_data.astype(float)
+# recent_data = recent_data.reset_index()
+
+
+# ##################################################
+# # Interpolación (suavizado)  del Precio (OPEN) con SciPy y obtención de derivadas con su respectiva interpolación.
+# ##################################################
+
+# recent_data['Interpolacion'] = sc.signal.savgol_filter(recent_data.Open,smooth_interval,3)
+# recent_data['Primer_Derivada'] = recent_data.Interpolacion.diff()
+# recent_data['PD_Interpolacion'] = sc.signal.savgol_filter(recent_data.Primer_Derivada,smooth_interval,3)
+# recent_data['Segunda_Derivada'] = recent_data.PD_Interpolacion.diff()
+# recent_data['SD_Interpolacion'] = sc.signal.savgol_filter(recent_data.Segunda_Derivada,smooth_interval,3)
+# recent_data['Tercer_Derivada'] = recent_data.SD_Interpolacion.diff()
+# recent_data['TD_Interpolacion'] = sc.signal.savgol_filter(recent_data.Tercer_Derivada,smooth_interval,3)
+
+
+rango = 100
+std_mult = 70
+z_aprox = 0.15
+
+initial_date_index = recent_data[recent_data.Tiempo == datetime.strptime('2024-04-04 05:48:00','%Y-%m-%d %H:%M:%S')].index.item() + rango
+final_date_index = recent_data[recent_data.Tiempo == datetime.strptime('2024-04-06 05:47:00','%Y-%m-%d %H:%M:%S')].index.item() - rango
+
+######################################################################
+# Agregamos el código necesario para encontrar los puntos exactos mínimos y máximos
+######################################################################
+min_max_sd = pd.DataFrame(columns=['Derivada'])
+min_max_sd['Derivada'] = recent_data[initial_date_index:final_date_index].SD_Interpolacion.diff()
+lista_min_max = min_max_sd[(min_max_sd['Derivada'] >= -z_aprox) & (min_max_sd['Derivada'] <= z_aprox)]
+indices_min_max = lista_min_max.index.tolist()
+
+max_points_idx = []
+min_points_idx = []
+mm_points_idx = []
+pmin = 0
+pmax = 0
+
+for i in range(len(indices_min_max)):
+    PMSD = indices_min_max[i]
+    if recent_data.SD_Interpolacion[PMSD:PMSD+1].item() > 0:
+        if abs(recent_data.SD_Interpolacion[i]*100) > abs(np.std(recent_data.SD_Interpolacion)*std_mult):
+            pmax = recent_data.SD_Interpolacion[PMSD]
+        for i in range(rango+1):
+            if (recent_data.SD_Interpolacion[PMSD-i] > pmax) & (abs(recent_data.SD_Interpolacion[PMSD-i]*100) > abs(np.std(recent_data.SD_Interpolacion)*std_mult)):
+                pmax_idx = PMSD-i
+            elif (recent_data.SD_Interpolacion[PMSD+i] > pmax) & (abs(recent_data.SD_Interpolacion[PMSD+i]*100) > abs(np.std(recent_data.SD_Interpolacion)*std_mult)):
+                pmax_idx = PMSD+i
+        max_points_idx.append(pmax_idx)
+    elif recent_data.SD_Interpolacion[PMSD:PMSD+1].item() < 0:
+        if abs(recent_data.SD_Interpolacion[i]*100) > abs(np.std(recent_data.SD_Interpolacion)*std_mult):
+            pmin = recent_data.SD_Interpolacion[PMSD]
+        for i in range(rango+1):
+            if (recent_data.SD_Interpolacion[PMSD-i] < pmin) & (abs(recent_data.SD_Interpolacion[PMSD-i]*80) > abs(np.std(recent_data.SD_Interpolacion)*std_mult)):
+                pmin_idx = PMSD-i
+            elif (recent_data.SD_Interpolacion[PMSD+i] < pmin) & (abs(recent_data.SD_Interpolacion[PMSD+i]*80) > abs(np.std(recent_data.SD_Interpolacion)*std_mult)):
+                pmin_idx = PMSD+i
+        min_points_idx.append(pmin_idx)
+max_points_idx = list(set(max_points_idx))
+min_points_idx = list(set(min_points_idx))
+# max_points_idx.extend(min_points_idx)
+max_points_idx.sort()
+min_points_idx.sort()
+# mm_points_idx = max_points_idx
+close_points_max = []
+close_points_min = []
+for lista in [max_points_idx,min_points_idx]:
+    for i in range(len(lista)-1):
+        if lista[i+1]-lista[i] <= 2:
+            if lista == max_points_idx:
+                close_points_max.append(i+1)
+            else:
+                close_points_min.append(i+1)
+    if lista == max_points_idx:
+        for idx in sorted(close_points_max,reverse=True):
+            del lista[idx]
+    else:
+        for idx in sorted(close_points_min,reverse=True):
+            del lista[idx]
+
+######################################################################
+# Agregamos el código necesario para encontrar los puntos exactos mínimos y máximos
+######################################################################
+mp = recent_data.Open[initial_date_index:final_date_index].mean()
+plt.figure(figsize=(15,8))
+plt.plot(recent_data.Tiempo[initial_date_index:final_date_index],recent_data.Open[initial_date_index:final_date_index].multiply(1),color='y')
+plt.plot(recent_data.Tiempo[initial_date_index:final_date_index],recent_data.PD_Interpolacion[initial_date_index:final_date_index].multiply(10)+mp,'purple')
+plt.plot(recent_data.Tiempo[initial_date_index:final_date_index],recent_data.SD_Interpolacion[initial_date_index:final_date_index].multiply(80)+mp,color='k')
+#lplt.plot(recent_data.Tiempo[initial_date_index:final_date_index],recent_data.TD_Interpolacion[initial_date_index:final_date_index].multiply(300)+mp,color='y')
+plt.axvline(datetime.strptime('2024-04-04 09:59:00','%Y-%m-%d %H:%M:%S'))
+plt.scatter(recent_data.Tiempo.iloc[max_points_idx],recent_data.Open.iloc[max_points_idx],color='g')
+plt.scatter(recent_data.Tiempo.iloc[min_points_idx],recent_data.Open.iloc[min_points_idx],color='r')
+plt.grid(visible=True)
+
+# Set minor tick locations.
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%y %H:%M'))
+plt.gca().xaxis.set_major_locator(mdates.MinuteLocator(interval=60))
+# plt.gca().yaxis.set_major_locator(ticker.LinearLocator(interval=5))
+# plt.gca().xaxis.set_minor_locator(minorLocator)
+plt.gcf().autofmt_xdate()
+# Set grid to use minor tick locations. 
+plt.grid(which = 'minor')
+plt.xticks(rotation=75)
+plt.axhline(mp)
+plt.axhline(np.std(recent_data.SD_Interpolacion)*std_mult + mp)
+plt.axhline(mp - np.std(recent_data.SD_Interpolacion)*std_mult)
+plt.show
+
+
+	
