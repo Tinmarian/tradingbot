@@ -1,0 +1,2 @@
+trade_id,orden_id,client_order_id,cantidad,cantidad_ejecutada,accion,tiempo_op,precio_op,tiempo_sl,precio_sl,comision,activo_comision
+609604356,5085388020,9t7HEMZFnhRJ7ti28KNTXx,0.00010000,0.00010000,SELL,2024-04-16 23:05:44.814,64275.51,2024-04-17 05:05:44.343,64236.67,0.00000000,BNB
